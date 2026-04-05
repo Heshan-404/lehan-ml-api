@@ -4,12 +4,13 @@ import numpy as np
 
 app = Flask(__name__)
 
-# Load all three models for the AuraCart engine (Task 3.2, 3.3, 3.5)
+# AuraCart Deployment: All 4 models for the unified engine
 try:
     regression_model = joblib.load("model.joblib")
-    classification_model = joblib.load("classification_model.joblib")
-    clustering_model = joblib.load("clustering_model.joblib")
-    print("All 3 models loaded successfully.")
+    delivery_status_model = joblib.load("delivery_status_model.joblib")
+    customer_segment_model = joblib.load("customer_segment_model.joblib")
+    behavioral_clustering_model = joblib.load("behavioral_clustering_model.joblib")
+    print("All 4 models for the AuraCart Mandate have been loaded successfully.")
 except Exception as e:
     print(f"Error loading models: {e}")
 
@@ -26,39 +27,46 @@ def predict():
 
         features_array = np.array(features).reshape(1, -1)
 
-        # Execute the "Triple Mandate" from the project specification:
-        
-        # 1. Regression (Task 3.2): Revenue Forecasting
-        value_prediction = regression_model.predict(features_array)[0]
+        # 1. Regression (Task 3.2): Monetary Value Prediction
+        value_pred = regression_model.predict(features_array)[0]
 
-        # 2. Classification (Task 3.3): Order Risk Assessment
-        # 0 = On-time, 1 = High Risk of Delay
-        risk_class = int(classification_model.predict(features_array)[0])
-        risk_status = "High Risk of Delay" if risk_class == 1 else "On-time Probability"
+        # 2. Classification (Task 3.3a): Delivery Status prediction
+        # Target classes: Delivered, Shipped, Pending, Returned
+        delivery_class = int(delivery_status_model.predict(features_array)[0])
+        delivery_status = ["Delivered", "Shipped", "Pending", "Returned"][delivery_class]
 
-        # 3. Clustering (Task 3.5): Behavioral Segmentation
-        # Segment 0 = "Bronze", 1 = "Silver", 2 = "Gold"
-        cluster_id = int(clustering_model.predict(features_array)[0])
-        segments = ["Bronze Customer", "Silver Customer", "Gold Customer"]
-        segment_label = segments[cluster_id] if cluster_id < 3 else "Unknown"
+        # 3. Classification (Task 3.3b): Customer Segment prediction (Supervised)
+        # Target classes: New, Returning, VIP
+        segment_class = int(customer_segment_model.predict(features_array)[0])
+        customer_segment = ["New Customer", "Returning Customer", "VIP Customer"][segment_class]
+
+        # 4. Clustering (Task 3.5): Behavioral Cluster (Unsupervised)
+        # Behavioral categorization based on patterns
+        cluster_id = int(behavioral_clustering_model.predict(features_array)[0])
+        segments = ["Bronze behavior", "Silver behavior", "Gold behavior"]
+        behavior_label = segments[cluster_id] if cluster_id < 3 else "Unknown"
 
         return jsonify({
             "status": "success",
             "results": {
                 "regression": {
                     "task": "Revenue Forecast (Task 3.2)",
-                    "predicted_order_value": round(float(value_prediction), 2)
+                    "predicted_order_value": round(float(value_pred), 2)
                 },
-                "classification": {
-                    "task": "Delivery Risk Assessment (Task 3.3)",
-                    "risk_probability": risk_status
+                "delivery_classification": {
+                    "task": "Order Logistic Risk (Task 3.3a)",
+                    "status": delivery_status
                 },
-                "clustering": {
-                    "task": "Customer Behavioral Segmentation (Task 3.5)",
-                    "segment": segment_label
+                "segmentation_classification": {
+                    "task": "Strategic Marketing Target (Task 3.3b)",
+                    "segment": customer_segment
+                },
+                "behavioral_clustering": {
+                    "task": "Latent Behavioral Grouping (Task 3.5)",
+                    "behavior": behavior_label
                 }
             },
-            "context": "AuraCart Unified Analytics Engine"
+            "context": "AuraCart Unified Unified Production Engine v1.5"
         })
 
     except Exception as e:
@@ -68,8 +76,8 @@ def predict():
 def health():
     return jsonify({
         "status": "healthy",
-        "models_loaded": True,
-        "engine": "AuraCart Unified v1.2"
+        "models_count": 4,
+        "engine": "AuraCart MLOps Unified"
     })
 
 if __name__ == '__main__':
