@@ -1,0 +1,11 @@
+AuraCart Performance Evaluation (Task 3.4)
+========================================
+
+              precision    recall  f1-score   support
+
+     On-time       0.62      0.71      0.67        28
+     Delayed       0.56      0.45      0.50        22
+
+    accuracy                           0.60        50
+   macro avg       0.59      0.58      0.58        50
+weighted avg       0.59      0.60      0.59        50
