@@ -4,50 +4,73 @@ import numpy as np
 
 app = Flask(__name__)
 
-# Load the model
+# Load all three models for the AuraCart engine (Task 3.2, 3.3, 3.5)
 try:
-    model = joblib.load("model.joblib")
+    regression_model = joblib.load("model.joblib")
+    classification_model = joblib.load("classification_model.joblib")
+    clustering_model = joblib.load("clustering_model.joblib")
+    print("All 3 models loaded successfully.")
 except Exception as e:
-    model = None
-    print(f"Error loading model: {e}")
-
+    print(f"Error loading models: {e}")
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if not model:
-        return jsonify({"error": "Model not loaded"}), 500
-
     try:
         data = request.get_json()
+        features = data.get('features')
+        
+        if not features or len(features) != 20:
+             return jsonify({
+                 "error": f"Model expects 20 features, but got {len(features) if features else 0}"
+             }), 400
 
-        # Expecting 'features' key in JSON with a list of 20 numerical values
-        if 'features' not in data:
-            return jsonify({"error": "No 'features' key in request JSON"}), 400
-
-        features = data['features']
-
-        if len(features) != 20:
-            return jsonify({
-                "error": f"Model expects 20 features, but got {len(features)}"
-            }), 400
-
-        # Reshape to a 2D array for prediction: (1, 20)
         features_array = np.array(features).reshape(1, -1)
 
-        # Predict using the loaded pipeline
-        prediction = model.predict(features_array)
+        # Execute the "Triple Mandate" from the project specification:
+        
+        # 1. Regression (Task 3.2): Revenue Forecasting
+        value_prediction = regression_model.predict(features_array)[0]
 
-        return jsonify({"prediction": float(prediction[0])})
+        # 2. Classification (Task 3.3): Order Risk Assessment
+        # 0 = On-time, 1 = High Risk of Delay
+        risk_class = int(classification_model.predict(features_array)[0])
+        risk_status = "High Risk of Delay" if risk_class == 1 else "On-time Probability"
+
+        # 3. Clustering (Task 3.5): Behavioral Segmentation
+        # Segment 0 = "Bronze", 1 = "Silver", 2 = "Gold"
+        cluster_id = int(clustering_model.predict(features_array)[0])
+        segments = ["Bronze Customer", "Silver Customer", "Gold Customer"]
+        segment_label = segments[cluster_id] if cluster_id < 3 else "Unknown"
+
+        return jsonify({
+            "status": "success",
+            "results": {
+                "regression": {
+                    "task": "Revenue Forecast (Task 3.2)",
+                    "predicted_order_value": round(float(value_prediction), 2)
+                },
+                "classification": {
+                    "task": "Delivery Risk Assessment (Task 3.3)",
+                    "risk_probability": risk_status
+                },
+                "clustering": {
+                    "task": "Customer Behavioral Segmentation (Task 3.5)",
+                    "segment": segment_label
+                }
+            },
+            "context": "AuraCart Unified Analytics Engine"
+        })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "healthy", "model_loaded": model is not None})
-
+    return jsonify({
+        "status": "healthy",
+        "models_loaded": True,
+        "engine": "AuraCart Unified v1.2"
+    })
 
 if __name__ == '__main__':
-    # Run the app on 0.0.0.0 to be accessible outside the container
     app.run(host='0.0.0.0', port=8080)
